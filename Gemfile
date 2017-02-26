@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-ruby "2.4.0"
+ruby "2.3.4"
 
 gem 'engtagger', '~> 0.2.1'
 gem 'awesome_print', '~> 1.7.0'
