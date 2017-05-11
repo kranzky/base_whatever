@@ -12,10 +12,12 @@ CODES = {
   "D20": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
   "Hex": %w{0 1 2 3 4 5 6 7 8 9 A B C D E F},
   "Alpha": ('a'..'z').to_a,
-  "Bitcoin": "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".split(''),
+  "Base58": "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".split(''),
   "RGB": ["00", "55", "AA", "FF"].repeated_permutation(3).map(&:join).sort,
   "Emoji": File.read('emoji.txt').split(/\n/),
   "Kranzky": File.read('words.txt').split(/\n/),
+  "Keybase": File.read('keybase.txt').split(/\n/),
+  "MakePass": File.read('makepass.txt').split(/\n/),
   "DiceWare": File.read('diceware.wordlist.asc').split(/\n/),
   "EFF DiceWare": File.read('eff_large_wordlist.txt').split(/\n/)
 }
@@ -67,7 +69,7 @@ end
 #         5 words and up: good for master password for password manager vault
 #         recommend 6 words (72-bit) - not guessable by a spy agency in reasonable time
 #         can do up to 10 words (120-bit) - not guessable before the heat death of the universe
-bits = 72
+bits = 120
 
 # what is the largest number
 max = 2 ** bits
@@ -87,6 +89,7 @@ number = rand(max)
 puts "Number: #{number}"
 
 # STEP 3: what encoding would you like to use?
+password = ""
 CODES.each do |name, alphabet|
 	base = alphabet.length
 	length = Math.log(max, base).round(6).ceil
@@ -101,6 +104,7 @@ CODES.each do |name, alphabet|
 	puts "#{name} (base #{base}, length #{length}): #{code.join(',')}"
 	value =
 		if name == :"Kranzky"
+      password = code.join(' ')
 			decode(code, alphabet[0, 4096], alphabet[4096, 9])
 		else
 			decode(code, alphabet)
@@ -116,10 +120,48 @@ SPEED.each do |name, gps|
   puts "#{name}: #{years} years"
 end
 
-# encrypt password
-# + generate a long random salt using a cryptographically secure prng
-# + prepend the salt to the password and hash with a standard hashing function
-# + store the hash and the salt
-# + use key stretching to make it slow
-# + use bcryptjs or pbkdf2
-# users can safely store this encrypted text somewhere
+# use password to generate a 32-byte seed
+# which then generates a public/private key pair
+# store username, work, salt and public key
+# auth by sending a random message, having user sign it, then send verify key
+
+require 'rbnacl/libsodium'
+
+work = 30
+mem = 2 ** work
+ops = mem / 32
+salt = RbNaCl::Random.random_bytes
+seed = RbNaCl::Util.zeros(32)
+
+#salt = RbNaCl::Util.hex2bin("12840ee4b16854c63ffad8b26ba8d1c26ae7b20e937f311c5012f8681212e180")
+#password = "some dumb pass phrase"
+message = "let me in"
+
+retval = RbNaCl::PasswordHash::SCrypt.crypto_pwhash_scryptsalsa208sha256(seed, seed.length, password, password.length, salt, ops, mem)
+
+if retval != 0
+  puts "dead"
+  exit 1
+end
+
+puts "Pass: #{password}"
+puts "Salt: #{RbNaCl::Util.bin2hex(salt)}"
+puts "Seed: #{RbNaCl::Util.bin2hex(seed)}"
+
+# crypto_box_seed_keypair(pub, priv, seed)
+key = RbNaCl::Boxes::Curve25519XSalsa20Poly1305::PrivateKey.generate(seed)
+
+pub = RbNaCl::Util.bin2hex(key.public_key.to_bytes)
+pri = RbNaCl::Util.bin2hex(key.to_bytes)
+
+puts "Public: #{pub}"
+puts "Private: #{pri}"
+
+raise unless RbNaCl::Util.hex2bin(pri) == key.to_bytes
+raise unless RbNaCl::Util.hex2bin(pub) == key.public_key.to_bytes
+
+signing_key = RbNaCl::SigningKey.new(key.to_bytes)
+signature = signing_key.sign(message)
+puts "Message: #{message}"
+verify_key = signing_key.verify_key
+verify_key.verify(signature, message)
