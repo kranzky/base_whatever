@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-ruby "2.3.4"
+ruby "2.7.5"
 
 gem 'rbnacl-libsodium', '~> 1.0.11'
 gem 'rbnacl', git: 'git@github.com:jasonhutchens/rbnacl.git'

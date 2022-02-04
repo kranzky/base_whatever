@@ -10,9 +10,9 @@ GEM
   specs:
     awesome_print (1.7.0)
     byebug (9.0.6)
-    engtagger (0.2.1)
-    ffi (1.9.18)
-    rbnacl-libsodium (1.0.11)
+    engtagger (0.2.2)
+    ffi (1.15.5)
+    rbnacl-libsodium (1.0.16)
       rbnacl (>= 3.0.1)
 
 PLATFORMS
@@ -26,7 +26,7 @@ DEPENDENCIES
   rbnacl-libsodium (~> 1.0.11)
 
 RUBY VERSION
-   ruby 2.3.4p301
+   ruby 2.7.5p203
 
 BUNDLED WITH
-   1.14.6
+   2.1.4
